@@ -1,79 +1,64 @@
-<model-viewer
-  id="mv"
-  src="./model3.glb"
-  alt="3D model"
-  camera-controls
-  interaction-prompt="none"
-  shadow-intensity="1"
-  poster="./poster.png"
-  ar
-  ar-modes="webxr scene-viewer quick-look">
-</model-viewer>
-
-<script type="module">
-  const mv = document.getElementById('mv');
-
-  // --- Tweakables ---
-  const spinDegPerSec   = 15;   // base spin speed
-  const bobAmpDeg       = 5;    // vertical bob amplitude
-  const bobHz           = 0.10; // bob frequency
-  const baseTiltDeg     = 90;   // average vertical tilt
-
-  const followYawMaxDeg = 10;   // max yaw added by cursor
-  const followTiltMaxDeg= 6;    // max tilt added by cursor
-  const followLerp      = 0.08; // smoothing (0..1), lower = smoother
-
-  mv.addEventListener('load', () => {
-    let last = performance.now();
-    // baseline camera state
-    let {theta, phi, radius} = mv.getCameraOrbit();
-
-    // normalized cursor targets (-1..1)
-    let tx = 0, ty = 0;   // target
-    let fx = 0, fy = 0;   // smoothed / filtered
-
-    // pointer -> normalized coords in element
-    function toNorm(e) {
-      const r = mv.getBoundingClientRect();
-      const x = (('clientX' in e ? e.clientX : e.touches[0].clientX) - r.left) / r.width;
-      const y = (('clientY' in e ? e.clientY : e.touches[0].clientY) - r.top ) / r.height;
-      return { nx: x*2 - 1, ny: y*2 - 1 }; // -1..1
-    }
-
-    mv.addEventListener('pointermove', e => {
-      const {nx, ny} = toNorm(e);
-      tx = nx; ty = ny;
-    });
-    mv.addEventListener('touchmove', e => {
-      const {nx, ny} = toNorm(e);
-      tx = nx; ty = ny;
-    }, {passive:true});
-    mv.addEventListener('mouseleave', () => { tx = 0; ty = 0; });
-
-    function frame(now){
-      const dt = (now - last) / 1000; last = now;
-
-      // keep baseline synced if user is actively dragging
-      if (mv.interacting) {
-        const o = mv.getCameraOrbit();
-        theta = o.theta; phi = o.phi; radius = o.radius;
-      } else {
-        // base spin + bob
-        theta += (spinDegPerSec * Math.PI/180) * dt;
-        const bobPhi = (baseTiltDeg + bobAmpDeg * Math.sin(2*Math.PI*bobHz*(now/1000))) * Math.PI/180;
-
-        // smooth cursor follow
-        fx += (tx - fx) * followLerp;
-        fy += (ty - fy) * followLerp;
-
-        const yawOffset  = fx * (followYawMaxDeg  * Math.PI/180);
-        const tiltOffset = -fy * (followTiltMaxDeg * Math.PI/180); // invert so up = tilt up
-
-        mv.cameraOrbit = `${theta + yawOffset}rad ${bobPhi + tiltOffset}rad ${radius}m`;
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>3D Viewer</title>
+    <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+    <style>
+      html, body { height: 100%; margin: 0; }
+      model-viewer {
+        width: 100%;
+        height: 100vh;
+        --interaction-prompt-display: none;
       }
+      /* Optional UI trims */
+      model-viewer::part(default-progress-bar){ display:none; }
+      /* model-viewer::part(default-ar-button){ display:none; } */
+    </style>
+  </head>
+  <body>
+    <model-viewer
+      id="mv"
+      src="./model3.glb"
+      alt="3D model"
+      interaction-prompt="none"
+      shadow-intensity="1"
+      poster="./poster.png"
+      ar
+      ar-modes="webxr scene-viewer quick-look">
+    </model-viewer>
 
-      requestAnimationFrame(frame);
-    }
-    requestAnimationFrame(frame);
-  });
-</script>
+    <script type="module">
+      const mv = document.getElementById('mv');
+
+      // Motion knobs (no user controls)
+      const baseTiltDeg = 90;  // straight-on
+      const bobAmpDeg   = 2;   // up-only amount (reduce if it ever obscures the S)
+      const bobHz       = 0.20;
+      const yawSwayDeg  = 0;   // 0 = no left/right motion; set to 3-4 for tiny sway
+      const yawHz       = 0.07;
+
+      mv.addEventListener('load', () => {
+        // start straight-on; keep current distance
+        mv.cameraOrbit = `0deg ${baseTiltDeg}deg auto`;
+        let { theta, radius } = mv.getCameraOrbit();
+
+        function frame(now){
+          const t = now / 1000;
+
+          // optional tiny yaw sway (kept at 0 by default)
+          const thetaNow = theta + (yawSwayDeg * Math.PI/180) * Math.sin(2*Math.PI*yawHz*t);
+
+          // UP-ONLY bob: stays between (90° - bobAmp) and 90°
+          const phiDeg = baseTiltDeg - bobAmpDeg * (0.5 + 0.5 * Math.sin(2*Math.PI*bobHz*t));
+          const phi    = phiDeg * Math.PI/180;
+
+          mv.cameraOrbit = `${thetaNow}rad ${phi}rad ${radius}m`;
+          requestAnimationFrame(frame);
+        }
+        requestAnimationFrame(frame);
+      });
+    </script>
+  </body>
+</html>
