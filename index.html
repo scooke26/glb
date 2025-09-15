@@ -1,68 +1,46 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>3D Viewer</title>
-    <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
-    <style>
-      html, body { height: 100%; margin: 0; }
-      model-viewer {
-        width: 100%;
-        height: 100vh;
-        --interaction-prompt-display: none; /* hide hand/arrow hint */
-      }
-      /* Optional: hide progress bar. Remove if you want it. */
-      model-viewer::part(default-progress-bar){ display:none; }
-      /* Optional: keep AR button visible by default; comment out to hide.
-      model-viewer::part(default-ar-button){ display:none; }
-      */
-    </style>
-  </head>
-  <body>
-    <model-viewer
-      id="mv"
-      src="./model3.glb"
-      alt="3D model"
-      camera-controls
-      interaction-prompt="none"
-      shadow-intensity="1"
-      poster="./poster.png"
-      ar
-      ar-modes="webxr scene-viewer quick-look">
-    </model-viewer>
+<model-viewer
+  id="mv"
+  src="./model3.glb"
+  alt="3D model"
+  camera-controls
+  camera-orbit="0deg 90deg auto"          <!-- start straight-on -->
+  min-camera-orbit="auto 88deg auto"       <!-- clamp near straight-on -->
+  max-camera-orbit="auto 96deg auto"
+  interaction-prompt="none"
+  shadow-intensity="1"
+  poster="./poster.png"
+  ar
+  ar-modes="webxr scene-viewer quick-look">
+</model-viewer>
 
-    <script type="module">
-      const mv = document.getElementById('mv');
+<script type="module">
+  const mv = document.getElementById('mv');
 
-      // ---- Animation knobs ----
-      const spinDegPerSec = 20;   // base spin speed (left/right)
-      const bobAmpDeg     = 8;    // how much to tilt up (max)
-      const bobHz         = 0.20; // cycles per second
-      const baseTiltDeg   = 58;   // average vertical tilt
+  // subtle motion
+  const bobAmpDeg  = 3;     // 0..3° above horizon only
+  const bobHz      = 0.20;  // bob speed
+  const yawSwayDeg = 4;     // tiny left/right sway (no full spin)
+  const yawHz      = 0.07;
 
-      mv.addEventListener('load', () => {
-        let last = performance.now();
-        let { theta, radius } = mv.getCameraOrbit();
+  mv.addEventListener('load', () => {
+    const orbit0 = mv.getCameraOrbit();
+    const theta0 = orbit0.theta;
+    let { radius } = orbit0;
+    const baseTiltDeg = 90; // straight-on
 
-        function frame(now) {
-          const dt = (now - last) / 1000;
-          last = now;
+    function frame(now){
+      const t = now / 1000;
 
-          // continuous spin
-          theta += (spinDegPerSec * Math.PI / 180) * dt;
+      // left-right sway around front
+      const theta = theta0 + (yawSwayDeg * Math.PI/180) * Math.sin(2*Math.PI*yawHz*t);
 
-          // UP-ONLY bob: stays between (baseTiltDeg - bobAmpDeg) and baseTiltDeg
-          const phase  = 2 * Math.PI * bobHz * (now / 1000);
-          const phiDeg = baseTiltDeg - bobAmpDeg * (0.5 + 0.5 * Math.sin(phase));
-          const phi    = phiDeg * Math.PI / 180;
+      // UP-ONLY bob: 90..(90 + bobAmpDeg)
+      const phiDeg = baseTiltDeg + bobAmpDeg * (0.5 + 0.5 * Math.sin(2*Math.PI*bobHz*t));
+      const phi    = phiDeg * Math.PI/180;
 
-          mv.cameraOrbit = `${theta}rad ${phi}rad ${radius}m`;
-          requestAnimationFrame(frame);
-        }
-
-        requestAnimationFrame(frame);
-      });
-    </script>
-  </body>
-</html>
+      mv.cameraOrbit = `${theta}rad ${phi}rad ${radius}m`;
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  });
+</script>
