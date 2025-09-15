@@ -5,18 +5,48 @@
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>3D Viewer</title>
     <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
-    <style>html,body{height:100%;margin:0} model-viewer{width:100%;height:100vh}</style>
+    <style>
+      html,body { height:100%; margin:0; }
+      /* Also hides the prompt if the attribute is missed */
+      model-viewer { width:100%; height:100vh; --interaction-prompt-display:none; }
+    </style>
   </head>
   <body>
     <model-viewer
-      src="./model.glb"
+      src="./model2.glb"
       alt="3D model"
       camera-controls
-      auto-rotate
+      interaction-prompt="none"
       shadow-intensity="1"
       poster="./poster.png"
       ar
       ar-modes="webxr scene-viewer quick-look">
     </model-viewer>
+
+    <script type="module">
+      const mv = document.querySelector('model-viewer');
+
+      // —— Tweak these to taste ——
+      const yawDegPerSec = 25;   // left/right spin speed
+      const bobAmpDeg    = 12;   // how much to tilt up/down
+      const bobHz        = 0.25; // bob cycles per second
+      const baseTiltDeg  = 60;   // average vertical tilt (keeps it “angled”)
+
+      mv.addEventListener('load', () => {
+        let last = performance.now();
+        let theta = mv.getCameraOrbit().theta;       // current yaw (rad)
+        const r   = mv.getCameraOrbit().radius;      // keep current distance (meters)
+
+        function frame(now){
+          const dt   = (now - last) / 1000;
+          last       = now;
+          theta     += (yawDegPerSec * Math.PI/180) * dt;                   // spin
+          const phi  = (baseTiltDeg + bobAmpDeg * Math.sin(2*Math.PI*bobHz*(now/1000))) * Math.PI/180; // bob
+          mv.cameraOrbit = `${theta}rad ${phi}rad ${r}m`;                    // apply
+          requestAnimationFrame(frame);
+        }
+        requestAnimationFrame(frame);
+      });
+    </script>
   </body>
 </html>
