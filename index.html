@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>3D Viewer</title>
 
-  <!-- Pin a stable version -->
+  <!-- Pinned version -->
   <script type="module" src="https://unpkg.com/@google/model-viewer@3.4.0/dist/model-viewer.min.js"></script>
 
   <style>
@@ -13,13 +13,15 @@
     model-viewer {
       width: 100%;
       /* robust mobile height */
-      height: 100dvh;  /* modern */
-      height: 100svh;  /* safari */
-      height: 100vh;   /* fallback */
+      height: 100dvh;   /* modern */
+      height: 100svh;   /* Safari */
+      height: 100vh;    /* fallback */
       display: block;
+
       /* Hide AR UI & interaction hints */
       --ar-button-display: none;
       --interaction-prompt-display: none;
+
       touch-action: pan-y;
     }
     model-viewer::part(default-progress-bar){ display:none; }
@@ -28,7 +30,7 @@
 <body>
   <model-viewer
     id="mv"
-    src="./LOGOS.glb"   <!-- cache-bust: bump this number when you publish -->
+    src="./LOGOS.glb"
     alt="3D model"
     camera-controls
     shadow-intensity="1"
@@ -54,9 +56,11 @@
       function frame(now) {
         const dt = (now - last) / 1000; last = now;
         theta += (spinDegPerSec * Math.PI / 180) * dt;
+
         const phase  = 2 * Math.PI * bobHz * (now / 1000);
         const phiDeg = baseTiltDeg - bobAmpDeg * (0.5 + 0.5 * Math.sin(phase));
         const phi    = phiDeg * Math.PI / 180;
+
         mv.cameraOrbit = `${theta}rad ${phi}rad ${radius}m`;
         requestAnimationFrame(frame);
       }
